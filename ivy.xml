@@ -3,12 +3,12 @@
     <dependencies>
 
         <!-- Production -->
-        <dependency org="joda-time" name="joda-time" rev="1.6.2"/>
-        <dependency org="log4j" name="log4j" rev="1.2.16"/>
-        <dependency org="com.google.guava" name="guava" rev="10.0.1"/>
-        <dependency org="com.intellij" name="forms_rt" rev="7.0.3"/>
         <dependency org="org.scala-lang" name="scala-library" rev="2.9.1"/>
 
+        <!--<dependency org="joda-time" name="joda-time" rev="1.6.2"/>-->
+        <!--<dependency org="log4j" name="log4j" rev="1.2.16"/>-->
+        <!--<dependency org="com.google.guava" name="guava" rev="10.0.1"/>-->
+        <!--<dependency org="com.intellij" name="forms_rt" rev="7.0.3"/>-->
         <!--<dependency org="commons-cli" name="commons-cli" rev="1.2"/>-->
         <!--<dependency org="commons-codec" name="commons-codec" rev="1.6"/>-->
         <!--<dependency org="org.ektorp" name="org.ektorp" rev="1.2.1" />-->
@@ -16,7 +16,7 @@
         <!--<dependency org="net.java.dev.glazedlists" name="glazedlists_java15" rev="1.8.0"/>-->
 
         <!--Building-->
-        <dependency org="com.intellij" name="javac2" rev="7.0.3"/>
+        <!--<dependency org="com.intellij" name="javac2" rev="7.0.3"/>-->
         <dependency org="org.scala-lang" name="scala-compiler" rev="2.9.1"/>
 
         <!-- Testing -->
