@@ -4,6 +4,7 @@
 
         <!-- Production -->
         <dependency org="org.scala-lang" name="scala-library" rev="2.9.1"/>
+        <dependency org="org.apache.poi" name="poi" rev="3.7"/>
 
         <!--<dependency org="joda-time" name="joda-time" rev="1.6.2"/>-->
         <!--<dependency org="log4j" name="log4j" rev="1.2.16"/>-->
@@ -16,14 +17,15 @@
         <!--<dependency org="net.java.dev.glazedlists" name="glazedlists_java15" rev="1.8.0"/>-->
 
         <!--Building-->
-        <!--<dependency org="com.intellij" name="javac2" rev="7.0.3"/>-->
         <dependency org="org.scala-lang" name="scala-compiler" rev="2.9.1"/>
+        <!--<dependency org="com.intellij" name="javac2" rev="7.0.3"/>-->
 
         <!-- Testing -->
         <dependency org="junit" name="junit" rev="4.9"/>
-        <dependency org="org.jmock" name="jmock-junit4" rev="2.5.1"/>
         <dependency org="net.sourceforge.cobertura" name="cobertura" rev="1.9"/>
         <dependency org="org.specs2" name="specs2_2.9.1" rev="1.8.2"/>
+
+        <!--<dependency org="org.jmock" name="jmock-junit4" rev="2.5.1"/>-->
 
         <!-- Unmanaged dependencies -->
         <!-- ovation.jar, ovation-ui.jar -->
