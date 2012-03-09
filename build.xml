@@ -35,7 +35,8 @@
     </condition>
     <property name="lockserver.host" value="${OVATION_LOCK_SERVER}"/>
     <property name="devfd.path" value="${basedir}"/>
-    <property name="devfd.boot.path" value="${devfd.path}/ovation-xls-importer_test_FD.connection"/>
+    <property name="testfd.name" value="ovation-xls-importer_test_FD"/>
+    <property name="devfd.boot.path" value="${devfd.path}/${testfd.name}.connection"/>
     <property name="devfd.number" value="${OBJY_FDID}"/>
     <property name="objy.root" value="${OBJY_ROOT}"/>
     <property name="objy.license.path" value="${objy.root}/oolicense.txt"/>
@@ -78,7 +79,7 @@
             <env key="DYLD_LIBRARY_PATH" value="${ovation.root}/lib:${objy.root}/lib"/>
             <env key="LD_LIBRARY_PATH" value="${ovation.root}/lib:${objy.root}/lib"/>
             <arg value="-fdfilepath"/>
-            <arg value="${devfd.path}/test_fd.fdb"/>
+            <arg value="${devfd.path}/${testfd.name}.fdb"/>
 
             <arg value="-fdfilehost"/>
             <arg value="${lockserver.host}"/>

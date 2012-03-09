@@ -1,5 +1,7 @@
 package com.physion.ovation.importer.xls
 
+import ovation.DataContext
+
 /**
  * Created by IntelliJ IDEA.
  * User: barry
@@ -8,6 +10,7 @@ package com.physion.ovation.importer.xls
  * To change this template use File | Settings | File Templates.
  */
 
-class XlsImporter {
+class XLSImporter {
 
+    def importXLX(ctx: DataContext, xlsPath: String) {}
 }

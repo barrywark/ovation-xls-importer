@@ -4,7 +4,10 @@ import org.specs2._
 
 class CiclidBrainAndEcologyImportSpec extends mutable.SpecificationWithJUnit {
 
-    "The Ciclid Brain and Ecology importer should" >> {
+    "The Ciclid Brain and Ecology importer" should {
+
+        sequential
+
         "import genus=>species Source hierarchy" in new xls {
             ctx.currentAuthenticatedUser() must not beNull
         }
@@ -18,4 +21,6 @@ class CiclidBrainAndEcologyImportSpec extends mutable.SpecificationWithJUnit {
 
 trait xls extends ovdbinit {
 
+    // Import the XLS
+    val importer = XLSImporter().importXLS(ctx, xlsPath)
 }
