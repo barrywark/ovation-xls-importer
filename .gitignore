@@ -4,3 +4,9 @@
 workspace.xml
 lib/
 out/
+
+# Objy
+*.DB
+*.fdb
+*.connection
+*.JNL

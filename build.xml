@@ -26,7 +26,75 @@
 
     <property name="lib.dir" value="${basedir}/lib"/>
 
+    <property name="ovation.root" value="/opt/ovation"/>
+    <!--Database-->
+    <condition property="lockserver.host"
+               value="${env.COMPUTERNAME}"
+               else="${OVATION_LOCK_SERVER}">
+        <os family="windows"/>
+    </condition>
+    <property name="lockserver.host" value="${OVATION_LOCK_SERVER}"/>
+    <property name="devfd.path" value="${basedir}"/>
+    <property name="devfd.boot.path" value="${devfd.path}/ovation-xls-importer_test_FD.connection"/>
+    <property name="devfd.number" value="${OBJY_FDID}"/>
+    <property name="objy.root" value="${OBJY_ROOT}"/>
+    <property name="objy.license.path" value="${objy.root}/oolicense.txt"/>
+    <property name="objy.plugin.spec.dir" value="${ovation.root}/plugins"/>
+    <property name="ovation.schema" value="${ovation.root}/ovation.schema"/>
 
+
+    <target name="rebuild-test-database" depends="delete-dev-fd-unix, dev-fd-unix"/>
+
+    <target name="check-devfd-boot">
+        <available file="${devfd.boot.path}" property="devfd.boot.present"/>
+    </target>
+
+    <target name="delete-dev-fd-unix" depends="check-devfd-boot" if="devfd.boot.present" unless="os.isWindows">
+
+        <exec executable="${objy.root}/bin/oodeletefd">
+            <env key="DYLD_LIBRARY_PATH" value="${ovation.root}/lib:${objy.root}/lib"/>
+            <env key="LD_LIBRARY_PATH" value="${ovation.root}/lib:${objy.root}/lib"/>
+            <arg value="-force"/>
+            <arg value="-quiet"/>
+
+            <arg value="${devfd.boot.path}"/>
+        </exec>
+    </target>
+
+    <target name="dev-fd-unix" depends="create-dev-fd-unix" if="os.isUnixOrOSX">
+        <!-- Push schema to the FD -->
+        <exec executable="${objy.root}/bin/ooschemaupgrade">
+            <arg value="-infile"/>
+            <arg value="${ovation.schema}"/>
+
+            <arg value="${devfd.boot.path}"/>
+        </exec>
+
+    </target>
+
+    <target name="create-dev-fd-unix" if="os.isUnixOrOSX">
+        <!-- Create the Federated DB -->
+        <exec executable="${objy.root}/bin/oonewfd">
+            <env key="DYLD_LIBRARY_PATH" value="${ovation.root}/lib:${objy.root}/lib"/>
+            <env key="LD_LIBRARY_PATH" value="${ovation.root}/lib:${objy.root}/lib"/>
+            <arg value="-fdfilepath"/>
+            <arg value="${devfd.path}/test_fd.fdb"/>
+
+            <arg value="-fdfilehost"/>
+            <arg value="${lockserver.host}"/>
+
+            <arg value="-fdnumber"/>
+            <arg value="${devfd.number}"/>
+
+            <arg value="-lockserverhost"/>
+            <arg value="${lockserver.host}"/>
+
+            <arg value="-licensefile"/>
+            <arg value="${objy.license.path}"/>
+
+            <arg value="${devfd.boot.path}"/>
+        </exec>
+    </target>
 
     <!--COBERTURA-->
     <property name="cobertura.dir" value="${lib.dir}"/>
@@ -97,7 +165,6 @@ ivy is in at least one of ant's lib dir or the local lib dir. -->
             <pathelement location="${lib.dir}/jdom-1.0.jar"/>
             <pathelement location="${lib.dir}/asm-commons-3.0.jar"/>
             <pathelement location="${lib.dir}/asm-3.0.jar"/>
-            <pathelement location="${forms_rt.jar.path}"/>
         </path>
         <taskdef name="javac2" classname="com.intellij.ant.Javac2" classpathref="javac2.classpath"/>
     </target>

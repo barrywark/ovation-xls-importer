@@ -2,18 +2,20 @@ package com.physion.ovation.importer.xls
 
 import org.specs2._
 
-class CiclidBrainAndEcologyImportSpec extends SpecificationWithJUnit { def is =
+class CiclidBrainAndEcologyImportSpec extends mutable.SpecificationWithJUnit {
 
-    "The Ciclid Brain and Ecology importer should" ^
-        "import import source hierarchy" ^
-            "genus and species for anatomy data" ! xls().speciesSources ^
-            "site for ecology data" ! failure
+    "The Ciclid Brain and Ecology importer should" >> {
+        "import genus=>species Source hierarchy" in new xls {
+            ctx.currentAuthenticatedUser() must not beNull
+        }
+
+        "import site Source hierarchy" in new xls {
+            ctx.currentAuthenticatedUser() must beNull
+        }
+    }
 }
 
 
-case class xls() extends ovdbinit() {
-
-    // this is equivalent to def speciesSources = this.apply {...}
-    def speciesSources = { 1 must_== 1 }
+trait xls extends ovdbinit {
 
 }
