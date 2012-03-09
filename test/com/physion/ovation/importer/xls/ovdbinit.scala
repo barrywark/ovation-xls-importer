@@ -1,11 +1,9 @@
 package com.physion.ovation.importer.xls
 
-import scala.collection.JavaConversions._
-import scala.collection.immutable.{Set}
 import org.specs2._
-import com.objy.db.app.ooDBObj
 import org.apache.log4j.Level
 import ovation.{TestDBSetup, DataStoreCoordinator, Ovation}
+import org.joda.time.DateTime
 
 
 trait ovdbinit extends mutable.After {
@@ -33,7 +31,12 @@ trait ovdbinit extends mutable.After {
     ctx.authenticateUser(username,password)
 
 
-    def after =  {
-        TestDBSetup.cleanupDB(ctx)
+    val project = ctx.getProjects("test-project").length match {
+        case 0 => ctx.insertProject("test-project", "test-project", new DateTime())
+        case _ => ctx.getProjects("test-project")(0)
     }
+
+//    def after =  {
+//        //TestDBSetup.cleanupDB(ctx)
+//    }
 }

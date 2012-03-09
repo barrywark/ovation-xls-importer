@@ -75,48 +75,46 @@
     <orderEntry type="module-library">
       <library>
         <CLASSES>
-          <root url="jar://$MODULE_DIR$/lib/poi-3.7.jar!/" />
-          <root url="jar://$MODULE_DIR$/lib/oro-2.0.8.jar!/" />
-          <root url="jar://$MODULE_DIR$/lib/ant-1.7.0.jar!/" />
-          <root url="jar://$MODULE_DIR$/lib/servlet-api-2.3.jar!/" />
-          <root url="jar://$MODULE_DIR$/lib/hamcrest-all-1.1.jar!/" />
-          <root url="jar://$MODULE_DIR$/lib/pegdown-1.0.2.jar!/" />
-          <root url="jar://$MODULE_DIR$/lib/test-interface-0.5.jar!/" />
-          <root url="jar://$MODULE_DIR$/lib/commons-logging-1.1.jar!/" />
-          <root url="jar://$MODULE_DIR$/lib/scala-compiler-2.9.1.jar!/" />
-          <root url="jar://$MODULE_DIR$/lib/asm-util-3.3.1.jar!/" />
-          <root url="jar://$MODULE_DIR$/lib/hamcrest-core-1.1.jar!/" />
-          <root url="jar://$MODULE_DIR$/lib/jline-2.9.1.jar!/" />
-          <root url="jar://$MODULE_DIR$/lib/jansi-1.4.jar!/" />
-          <root url="jar://$MODULE_DIR$/lib/asm-tree-3.3.1.jar!/" />
-          <root url="jar://$MODULE_DIR$/lib/asm-analysis-3.3.1.jar!/" />
-          <root url="jar://$MODULE_DIR$/lib/asm-3.3.1.jar!/" />
-          <root url="jar://$MODULE_DIR$/lib/ant-launcher-1.7.0.jar!/" />
-          <root url="jar://$MODULE_DIR$/lib/scala-library-2.9.1.jar!/" />
-          <root url="jar://$MODULE_DIR$/lib/ovlicense.jar!/" />
-          <root url="jar://$MODULE_DIR$/lib/mockito-all-1.9.0.jar!/" />
-          <root url="jar://$MODULE_DIR$/lib/classycle-1.4.1.jar!/" />
-          <root url="jar://$MODULE_DIR$/lib/log4j-1.2.13.jar!/" />
-          <root url="jar://$MODULE_DIR$/lib/parboiled-core-1.0.1.jar!/" />
-          <root url="jar://$MODULE_DIR$/lib/parboiled-java-1.0.1.jar!/" />
-          <root url="jar://$MODULE_DIR$/lib/avalon-framework-4.1.3.jar!/" />
-          <root url="jar://$MODULE_DIR$/lib/logkit-1.0.1.jar!/" />
-          <root url="jar://$MODULE_DIR$/lib/scalacheck_2.9.1-1.9.jar!/" />
-          <root url="jar://$MODULE_DIR$/lib/cobertura-1.9.jar!/" />
+          <root url="jar://$MODULE_DIR$/lib/poi-3.8-beta5.jar!/" />
         </CLASSES>
-        <JAVADOC>
-          <root url="jar://$MODULE_DIR$/lib/cobertura-1.9-javadoc.jar!/" />
-          <root url="jar://$MODULE_DIR$/lib/junit-4.9-javadoc.jar!/" />
-        </JAVADOC>
-        <SOURCES>
-          <root url="jar://$MODULE_DIR$/lib/cobertura-1.9-sources.jar!/" />
-          <root url="jar://$MODULE_DIR$/lib/hamcrest-all-1.1.jar!/" />
-          <root url="jar://$MODULE_DIR$/lib/hamcrest-core-1.1.jar!/" />
-          <root url="jar://$MODULE_DIR$/lib/mockito-all-1.9.0.jar!/" />
-          <root url="jar://$MODULE_DIR$/lib/scala-library-2.9.1-sources.jar!/" />
-          <root url="jar://$MODULE_DIR$/lib/junit-4.9-sources.jar!/" />
-          <root url="jar://$MODULE_DIR$/lib/poi-3.7-sources.jar!/" />
-        </SOURCES>
+        <JAVADOC />
+        <SOURCES />
+      </library>
+    </orderEntry>
+    <orderEntry type="module-library">
+      <library>
+        <CLASSES>
+          <root url="jar://$MODULE_DIR$/lib/poi-ooxml-3.8-beta5.jar!/" />
+        </CLASSES>
+        <JAVADOC />
+        <SOURCES />
+      </library>
+    </orderEntry>
+    <orderEntry type="module-library">
+      <library>
+        <CLASSES>
+          <root url="jar://$MODULE_DIR$/lib/poi-ooxml-schemas-3.8-beta5.jar!/" />
+        </CLASSES>
+        <JAVADOC />
+        <SOURCES />
+      </library>
+    </orderEntry>
+    <orderEntry type="module-library">
+      <library>
+        <CLASSES>
+          <root url="jar://$MODULE_DIR$/lib/xmlbeans-2.3.0.jar!/" />
+        </CLASSES>
+        <JAVADOC />
+        <SOURCES />
+      </library>
+    </orderEntry>
+    <orderEntry type="module-library">
+      <library>
+        <CLASSES>
+          <root url="jar://$MODULE_DIR$/lib/dom4j-1.6.1.jar!/" />
+        </CLASSES>
+        <JAVADOC />
+        <SOURCES />
       </library>
     </orderEntry>
   </component>

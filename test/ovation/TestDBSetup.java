@@ -49,4 +49,10 @@ public class TestDBSetup {
             ctx.commitTransaction();
         }
     }
+
+    public static void deleteDB(DataContext ctx, ooDBObj db) {
+        ctx.beginWriteTransaction();
+        db.delete();
+        ctx.commitTransaction();
+    }
 }
