@@ -22,7 +22,7 @@ class XLSImporter {
         val sheet = workbook.getSheetAt(0)
         sheet.foreach(row => {
             row.foreach(cell => {
-                System.out.println(cell)
+                //System.out.println(cell)
             })
         })
 //        for (row <- sheet) {
