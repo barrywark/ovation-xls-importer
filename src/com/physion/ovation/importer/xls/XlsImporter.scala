@@ -15,11 +15,11 @@ import org.apache.poi.xssf.usermodel.XSSFWorkbook
 
 class XLSImporter {
 
-    def importXLS(ctx: DataContext, xlsPath: String) {
+    def importXLS(ctx: DataContext, xlsPath: String, sheet: String) {
         val input = new FileInputStream(xlsPath);
         val workbook = new XSSFWorkbook(input)
 
-        val sheet = workbook.getSheetAt(0)
+        val sheet = workbook.getSheet(sheet)
         sheet.foreach(row => {
             row.foreach(cell => {
                 //System.out.println(cell)
