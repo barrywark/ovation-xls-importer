@@ -1,12 +1,11 @@
 package com.physion.ovation.importer.xls
 
 import org.specs2._
-import org.apache.log4j.Level
-import ovation.{TestDBSetup, DataStoreCoordinator, Ovation}
 import org.joda.time.DateTime
 import scala.collection.JavaConversions._
+import ovation.{LogLevel, TestDBSetup, DataStoreCoordinator, Ovation}
 
-trait ovdbinit extends mutable.After {
+trait ovdbinit extends specification.After {
     val lab_name = "Lab";
     val institution_name = "Institution";
     val licenseCode = "QLbehF8zl4iCyCeRDzjo2s2/hynkX18TraxunvijO4aa0cZw4L5IVWO0PwVOk8cD\n" +
@@ -21,21 +20,28 @@ trait ovdbinit extends mutable.After {
 
     val connectionFile = System.getProperty("OVATION_TEST_FD_PATH")
 
-    Ovation.getLogger.setLevel(Level.DEBUG)
+    Ovation.enableLogging(LogLevel.DEBUG)
 
     TestDBSetup.setupTestDB(connectionFile, institution_name, lab_name, licenseCode, username, password)
 
     val dsc = DataStoreCoordinator.coordinatorWithConnectionFile(connectionFile)
 
-    val ctx = dsc.getContext
-    ctx.authenticateUser(username,password)
+    val _ctx = dsc.getContext
+    _ctx.authenticateUser(username,password)
 
 
-    val project = ctx.getProjects("test-project")
+    val _project = _ctx.getProjects("test-project")
       .headOption
-      .getOrElse(ctx.insertProject("test-project", "test-project", new DateTime()))
-    
+      .getOrElse(_ctx.insertProject("test-project", "test-project", new DateTime()))
+    val projectUUID = _project.getUuid
+
     override def after {
-        TestDBSetup.cleanupDB(ctx);
+        TestDBSetup.cleanupDB(_ctx);
+    }
+
+    def getContext = {
+        val ctx = dsc.getContext
+        ctx.authenticateUser(username, password)
+        ctx
     }
 }

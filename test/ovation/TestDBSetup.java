@@ -2,14 +2,15 @@ package ovation;
 
 import com.google.common.collect.Sets;
 import com.objy.db.app.ooDBObj;
-import ovation.license.*;
 import ovation.license.LicenseUtilities;
 
 import java.util.Iterator;
 import java.util.Set;
 
 /**
- * We use this to do the dirty work of setting up a test database
+ * We use this to do the dirty work of setting up a test database.
+ *
+ * TODO: This should be moved to ovation.test
  */
 public class TestDBSetup {
     public static void setupTestDB(String connectionFile,
