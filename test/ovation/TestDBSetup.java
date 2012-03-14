@@ -12,12 +12,12 @@ import java.util.Set;
  * We use this to do the dirty work of setting up a test database
  */
 public class TestDBSetup {
-    public static void setupDB(String connectionFile,
-                               String institution_name,
-                               String lab_name,
-                               String license_code,
-                               String username,
-                               String password) throws UserAuthenticationException {
+    public static void setupTestDB(String connectionFile,
+                                   String institution_name,
+                                   String lab_name,
+                                   String license_code,
+                                   String username,
+                                   String password) throws UserAuthenticationException {
 
         DataContext ctx = Ovation.connectToUnlicensedDB(connectionFile, institution_name, lab_name, license_code);
 
@@ -48,11 +48,5 @@ public class TestDBSetup {
         finally {
             ctx.commitTransaction();
         }
-    }
-
-    public static void deleteDB(DataContext ctx, ooDBObj db) {
-        ctx.beginWriteTransaction();
-        db.delete();
-        ctx.commitTransaction();
     }
 }

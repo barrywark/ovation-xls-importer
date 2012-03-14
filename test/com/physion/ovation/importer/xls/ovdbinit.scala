@@ -4,7 +4,7 @@ import org.specs2._
 import org.apache.log4j.Level
 import ovation.{TestDBSetup, DataStoreCoordinator, Ovation}
 import org.joda.time.DateTime
-
+import scala.collection.JavaConversions._
 
 trait ovdbinit extends mutable.After {
     val lab_name = "Lab";
@@ -23,7 +23,7 @@ trait ovdbinit extends mutable.After {
 
     Ovation.getLogger.setLevel(Level.DEBUG)
 
-    TestDBSetup.setupDB(connectionFile, institution_name, lab_name, licenseCode, username, password)
+    TestDBSetup.setupTestDB(connectionFile, institution_name, lab_name, licenseCode, username, password)
 
     val dsc = DataStoreCoordinator.coordinatorWithConnectionFile(connectionFile)
 
@@ -31,12 +31,11 @@ trait ovdbinit extends mutable.After {
     ctx.authenticateUser(username,password)
 
 
-    val project = ctx.getProjects("test-project").length match {
-        case 0 => ctx.insertProject("test-project", "test-project", new DateTime())
-        case _ => ctx.getProjects("test-project")(0)
+    val project = ctx.getProjects("test-project")
+      .headOption
+      .getOrElse(ctx.insertProject("test-project", "test-project", new DateTime()))
+    
+    override def after {
+        TestDBSetup.cleanupDB(ctx);
     }
-
-//    def after =  {
-//        //TestDBSetup.cleanupDB(ctx)
-//    }
 }

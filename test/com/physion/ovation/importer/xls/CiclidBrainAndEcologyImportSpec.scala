@@ -4,36 +4,27 @@ import org.specs2._
 import org.joda.time.DateTime
 import ovation.TestDBSetup
 
-class CiclidBrainAndEcologyImportSpec extends mutable.SpecificationWithJUnit {
+class CiclidBrainAndEcologyImportSpec extends SpecificationWithJUnit { def is =
 
-    "The Ciclid Brain and Ecology importer" should {
+    "The Ciclid Brain and Ecology importer should" ^
+      "import genus=>species Source hierarchy" ! xls().speciesSourceHierarchy ^
+      "import site Source hierarchy" ! xls().siteSourceHierarchy
 
-        "import genus=>species Source hierarchy" in new xls {
+    case class xls() extends ovdbinit {
+
+        val exp = project.insertExperiment("xls-import-test", new DateTime())
+
+        // Import the XLS
+        val xlsPath = "fixtures/Ciclid Brain and Social Data with Legend.xlsx"
+        val importer = new CiclidXlsImporter().importXLS(ctx, xlsPath)
+
+        def speciesSourceHierarchy = {
             ctx.currentAuthenticatedUser() must not beNull
         }
 
-        "import site Source hierarchy" in new xls {
-            ctx.currentAuthenticatedUser() must beNull
+        def siteSourceHierarchy = {
+            ctx.currentAuthenticatedUser() must not beNull
         }
     }
-}
 
-
-trait xls extends ovdbinit {
-
-    val exp = project.insertExperiment("xls-import-test", new DateTime())
-
-    // Import the XLS
-    val xlsPath = "fixtures/Ciclid Brain and Social Data with Legend.xlsx"
-    val importer = new XLSImporter().importXLS(ctx, xlsPath)
-
-    override def after = deleteExp
-
-    def deleteExp {
-        ctx.beginTransaction()
-        val db = exp.getContainer.getDB
-        exp.delete()
-        TestDBSetup.deleteDB(ctx, db)
-        ctx.commitTransaction()
-    }
 }
