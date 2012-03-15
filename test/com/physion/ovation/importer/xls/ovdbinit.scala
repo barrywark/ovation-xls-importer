@@ -5,7 +5,7 @@ import org.joda.time.DateTime
 import scala.collection.JavaConversions._
 import ovation.{LogLevel, TestDBSetup, DataStoreCoordinator, Ovation}
 
-trait ovdbinit extends specification.After {
+trait dbconfig {
     val lab_name = "Lab";
     val institution_name = "Institution";
     val licenseCode = "QLbehF8zl4iCyCeRDzjo2s2/hynkX18TraxunvijO4aa0cZw4L5IVWO0PwVOk8cD\n" +
@@ -19,25 +19,12 @@ trait ovdbinit extends specification.After {
     val password = "test"
 
     val connectionFile = System.getProperty("OVATION_TEST_FD_PATH")
+}
 
-    Ovation.enableLogging(LogLevel.DEBUG)
-
-    TestDBSetup.setupTestDB(connectionFile, institution_name, lab_name, licenseCode, username, password)
+trait ovdbinit extends dbconfig {
 
     val dsc = DataStoreCoordinator.coordinatorWithConnectionFile(connectionFile)
 
-    val _ctx = dsc.getContext
-    _ctx.authenticateUser(username,password)
-
-
-    val _project = _ctx.getProjects("test-project")
-      .headOption
-      .getOrElse(_ctx.insertProject("test-project", "test-project", new DateTime()))
-    val projectUUID = _project.getUuid
-
-    override def after {
-        TestDBSetup.cleanupDB(_ctx);
-    }
 
     def getContext = {
         val ctx = dsc.getContext
