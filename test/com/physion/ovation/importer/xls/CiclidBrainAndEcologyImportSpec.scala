@@ -12,8 +12,9 @@ import ovation._
 import scala.collection.{Seq, Map}
 import specification.Step
 import java.net.URI
+import scala.Predef._
 
-class CiclidBrainAndEcologyImportSpec extends SpecificationWithJUnit with dbconfig { def is =
+class CiclidBrainAndEcologyImportSpec extends SpecificationWithJUnit with testconfig { def is =
 
 
     "The Ciclid Brain and Ecology importer should" ^ Step(setupDB) ^ Step(importData)
@@ -91,7 +92,7 @@ class CiclidBrainAndEcologyImportSpec extends SpecificationWithJUnit with dbconf
     }
 
 
-    case class xls() extends ovdbinit {
+    case class xls() extends testcontext {
 
 
         def epochAnatomyResponses = {
@@ -234,9 +235,9 @@ class CiclidBrainAndEcologyImportSpec extends SpecificationWithJUnit with dbconf
                 val genusCell = row.getCell(1, Row.RETURN_BLANK_AS_NULL)
                 val speciesCell = row.getCell(2, Row.RETURN_BLANK_AS_NULL)
 
-                val genus = genusCell.getStringCellValue.replace("'","")
+                val genus = genusCell.getStringCellValue.replace("'","").trim
 
-                val species = speciesCell.getStringCellValue.replace("'","")
+                val species = speciesCell.getStringCellValue.replace("'","").trim
 
                 SourceInfo(genus, species)
             })

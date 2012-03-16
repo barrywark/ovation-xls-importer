@@ -1,11 +1,8 @@
 package com.physion.ovation.importer.xls
 
-import org.specs2._
-import org.joda.time.DateTime
-import scala.collection.JavaConversions._
-import ovation.{LogLevel, TestDBSetup, DataStoreCoordinator, Ovation}
+import ovation.{DataStoreCoordinator}
 
-trait dbconfig {
+trait testconfig {
     val lab_name = "Lab";
     val institution_name = "Institution";
     val licenseCode = "QLbehF8zl4iCyCeRDzjo2s2/hynkX18TraxunvijO4aa0cZw4L5IVWO0PwVOk8cD\n" +
@@ -21,7 +18,7 @@ trait dbconfig {
     val connectionFile = System.getProperty("OVATION_TEST_FD_PATH")
 }
 
-trait ovdbinit extends dbconfig {
+trait testcontext extends testconfig {
 
     val dsc = DataStoreCoordinator.coordinatorWithConnectionFile(connectionFile)
 

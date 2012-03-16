@@ -7,7 +7,7 @@ import org.apache.poi.ss.usermodel.{Cell, Row}
 import org.joda.time.DateTime
 import ovation._
 import scala.collection.{Seq, Map}
-import scala.Tuple2._
+import scala.Predef._
 
 class OvationXLSImportException(msg: String, cause: Throwable) extends OvationException(msg, cause) {
 
@@ -18,34 +18,47 @@ class CiclidXlsImporter {
 
     val GENUS_COLUMN = 1 //"B"
     val SPECIES_COLUMN = 2 //"C"
+
+
+    //TODO- we should define a map name => column number
+    /*
+    val anatomyColumns = Map[String,Int](
+    "genus"->1,
+    "species"->2
+    )
+    */
+
     val GENUS_NAME_KEY = "genus-name"
     val SPECIES_NAME_KEY = "species-name"
     val XLS_ROW_KEY = "_xls-row"
     val ANATOMY_GROUP_LABEL = "anatomy"
     val ANATOMY_PROTOCOL = "edu.texas.hofmann.brain-anatomy"
-    val ANATOMY_DEVICE_MANUFACTURER = "Measurement" //TODO is this what we want?
-    val NOT_APPLICABLE = "n/a"
+    val FISH_LABEL = "fish"
 
-    val anatomyMeasurementColumns = Map[Int,String](8->"body volume",
+    val ANATOMY_DEVICE_MANUFACTURER = "Measurement" //TODO is this what we want?
+    val OBSERVATION_SAMPLING_RATE = "single observation"
+
+    protected val anatomyMeasurementColumns = Map[Int,String](8->"body volume",
         9->"body length",
         10->"gonad weight",
         11->"GSI",
         12->"brain length",
         13->"brain mass",
         14->"brain size",
-        15->"olfactory nerve", //TODO measurement, units?
-        16->"olfactory bulb", //TODO measurement, units?
-        17->"telencephalon", //TODO measurement, units?
-        18->"optic tectum", //TODO measurement, units?
-        19->"hypothalamus", //TODO measurement, units?
-        20->"inferior hypothalamus", //TODO measurement, units?
-        21->"hypophysis", //TODO meas/units?
-        22->"cerebellum", //TODO meas/units?
-        23->"dorsal medulla"//TODO meas/units?
+        15->"olfactory nerve", //TODO measurement
+        16->"olfactory bulb", //TODO measurement
+        17->"telencephalon", //TODO measurement
+        18->"optic tectum", //TODO measurement
+        19->"hypothalamus", //TODO measurement
+        20->"inferior hypothalamus", //TODO measurement
+        21->"hypophysis", //TODO measurement
+        22->"cerebellum", //TODO measurement
+        23->"dorsal medulla"//TODO measurement
     )
 
-    val anatomyMeasurementUnits = Map[String,String](
+    protected val anatomyMeasurementUnits = Map[String,String](
         "body length"->"<TODO>",
+        "body volume"->"<TODO>",
         "gonad weight"->"<TODO>",
         "GSI"->"<TODO>",
         "brain length"->"<TODO>",
@@ -62,19 +75,8 @@ class CiclidXlsImporter {
         "dorsal medulla"->"<TODO>"
     )
 
-    def anatomyRowPhylogeny(row: Row) = {
-        val genus = row.getCell(GENUS_COLUMN).getStringCellValue.replace("'", "")
-        val species = row.getCell(SPECIES_COLUMN).getStringCellValue.replace("'", "")
-        (genus, species)
-    }
 
-
-    def rowSource(ctx: DataContext, genus:String, species: String) = {
-        ctx.sourceForInsertion(Seq("genus", "species").toArray,
-        Seq(GENUS_NAME_KEY, SPECIES_NAME_KEY).toArray,
-        Seq(genus, species).toArray)
-    }
-
+    val NUM_HEADER_ROWS = 1
 
     def importXLS(ctx: DataContext, exp: Experiment, xlsPath: String) {
 
@@ -83,63 +85,147 @@ class CiclidXlsImporter {
 
         val sheet = workbook.getSheet("combined")
 
-        val log = Ovation.getLogger
-
         log.info("Updating anatomy Sources")
-        sheet.foreach(row => {
+        sheet.drop(NUM_HEADER_ROWS).foreach(row => {
 
-            val (genus,species) = anatomyRowPhylogeny(row)
-
-            val srcInsertion = rowSource(ctx, genus, species)
-
-            if(srcInsertion.isNew) {
-                val source = srcInsertion.getSource
-                source.addProperty(XLS_ROW_KEY, row.getRowNum)
-
-                log.info("Inserted source " + source.getParent.getLabel + "(" + genus + ")" + " => " + source.getLabel + "(" + species + ")")
-            }
+            //updateAnatomySource(ctx, row) //TODO re-enable
 
         })
 
         log.info("Importing anatomy Epochs")
-        sheet.foreach(row => {
-            val (genus,species) = anatomyRowPhylogeny(row)
-
-            val src = rowSource(ctx, genus, species).getSource.getChildren
-                .filter((s:Source) => s.getOwnerProperty(XLS_ROW_KEY).asInstanceOf[Int] == row.getRowNum)
-                .head
-
-            val group = exp.insertEpochGroup(src, ANATOMY_GROUP_LABEL, new DateTime()) //TODO experiment dates?
-
-            val parameters = Map[String,Object]()
-
-            val epoch = group.insertEpoch(new DateTime(), //TODO epoch date?
-                new DateTime(), //TODO end date?
-                ANATOMY_PROTOCOL,
-                parameters //TODO protocol parameters for anatomy?
-            )
-
-            anatomyMeasurementColumns.foreach { case (cellNum, name) => {
-                    val value = row.getCell(cellNum, Row.RETURN_BLANK_AS_NULL)
-                    if(value != null) {
-                        value.getCellType match {
-                            case Cell.CELL_TYPE_NUMERIC => epoch.insertResponse(exp.externalDevice(name, ANATOMY_DEVICE_MANUFACTURER),
-                                Map[String, Object](),//TODO device parameters?
-                                new NumericData(Seq(value.getNumericCellValue).toArray),
-                                anatomyMeasurementUnits(name),
-                                name,
-                                0,
-                                NOT_APPLICABLE,
-                                IResponseData.NUMERIC_DATA_UTI
-                            )
-                            case _ => throw new OvationXLSImportException("Unexpected measurement type: " + value.getCellType)
-                        }
-
-                    }
-                }
-            }
+        sheet.drop(NUM_HEADER_ROWS).foreach(row => {
+            importEpoch(ctx, exp, row)
         })
 
+    }
+
+
+    protected def anatomyRowGenusAndSpecies(row: Row) = {
+        val genus = row.getCell(GENUS_COLUMN).getStringCellValue.replace("'", "").trim
+        val species = row.getCell(SPECIES_COLUMN).getStringCellValue.replace("'", "").trim
+        (genus, species)
+    }
+
+    protected def rowSource(ctx: DataContext, genus:String, species: String) = {
+        ctx.sourceForInsertion(Seq("genus", "species").toArray,
+        Seq(GENUS_NAME_KEY, SPECIES_NAME_KEY).toArray,
+        Seq(genus, species).toArray)
+    }
+
+    protected val log = Ovation.getLogger
+
+
+    protected def importEpoch(ctx: DataContext, exp: Experiment, row: Row)
+    {
+        val (genus, species) = anatomyRowGenusAndSpecies(row)
+
+
+        val rowSpecies: Source = rowSource(ctx, genus, species).getSource
+
+        val speciesFish = rowSpecies.getChildren
+        val src = rowSpecies.insertSource(FISH_LABEL)
+        src.addProperty(XLS_ROW_KEY, row.getRowNum)
+
+        addSourceProperties(src, row)
+
+
+        log.info("    importing " + src.getParent.getParent.getLabel + " " + src.getParent.getLabel + "'"))
+        val group = exp.insertEpochGroup(src, ANATOMY_GROUP_LABEL, new DateTime(), new DateTime()) //TODO experiment dates?
+
+        val parameters = Map[String, Object]()
+
+        val epoch = group.insertEpoch(new DateTime(), //TODO epoch date?
+                                      new DateTime(), //TODO end date?
+                                      ANATOMY_PROTOCOL,
+                                      parameters //TODO protocol parameters for anatomy?
+        )
+
+        anatomyMeasurementColumns.foreach {
+                                              case (cellNum, name) => {
+                                                  val value = numericCellValue(row, cellNum)
+                                                  value match {
+                                                      case None => log.warn("      Missing anatomy measurement " + name)
+                                                      case Some(measurement) => {
+                                                          epoch.insertResponse(
+                                                              exp.externalDevice(name, ANATOMY_DEVICE_MANUFACTURER),
+                                                              Map[String, Object](), //TODO device parameters?
+                                                              new NumericData(Seq(measurement).toArray),
+                                                              anatomyMeasurementUnits(name),
+                                                              name,
+                                                              1,
+                                                              OBSERVATION_SAMPLING_RATE,
+                                                              IResponseData.NUMERIC_DATA_UTI
+                                                          )
+                                                      }
+
+                                                  }
+                                              }
+                                          }
+
+    }
+
+    protected def updateAnatomySource(ctx: DataContext, row: Row)
+    {
+        val (genus, species) = anatomyRowGenusAndSpecies(row)
+
+        val srcInsertion = rowSource(ctx, genus, species)
+
+        if (srcInsertion.isNew) {
+            val source = srcInsertion.getSource
+            source.addProperty(XLS_ROW_KEY, row.getRowNum)
+
+            log.info(
+                "    Inserted source " + source.getParent.getLabel + "(" + genus + ")" + " => " + source.getLabel + "(" + species + ")")
+        }
+    }
+
+    protected def numericCellValue(row: Row, cellNum: Int): Option[Double] = {
+        val cell = row.getCell(cellNum, Row.RETURN_BLANK_AS_NULL)
+
+        cell match {
+            case null => None
+            case _ => cell.getCellType match {
+                case Cell.CELL_TYPE_NUMERIC => Some(cell.getNumericCellValue)
+                case _ => {
+                    log.warn("Non-numeric cell value " + cellValue(row, cellNum).getOrElse("<unknown>"))
+                    None
+                }
+            }
+
+        }
+    }
+
+    protected def cellValue(row: Row, cellNum: Int) =  {
+        val cell = row.getCell(cellNum, Row.RETURN_BLANK_AS_NULL)
+        
+        cell match {
+            case null => None
+            case _ => Some(
+                cell.getCellType match {
+                    case Cell.CELL_TYPE_STRING => cell.getStringCellValue.trim
+                    case Cell.CELL_TYPE_BOOLEAN => cell.getBooleanCellValue
+                    case Cell.CELL_TYPE_NUMERIC => cell.getNumericCellValue
+                    case _ => throw new OvationXLSImportException("Cannot save cell property for cell of type " + cell.getCellType)
+                }
+            )
+        }
+    }
+
+    private def addSourceProperties(src: Source, row: Row)
+    {
+        val properties = Map[Int,String](3->"lake",
+                                         4->"run-number",
+                                         5->"sex",
+                                         6->"sample-origin",
+                                         7->"museum-animal-ID")
+        
+        properties.map { case (cellNum, label) => {
+            val value = cellValue(row, cellNum)
+            value match {
+                case Some(value) => src.addProperty(label, value)
+                case None => log.warn("Source is missing " + label)
+            }
+        } }
     }
 }
 
