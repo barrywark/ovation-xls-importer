@@ -38,6 +38,8 @@ class CiclidXlsImporter {
     val ANATOMY_DEVICE_MANUFACTURER = "Measurement" //TODO is this what we want?
     val OBSERVATION_SAMPLING_RATE = "single observation"
 
+    val NUM_HEADER_ROWS = 1
+
     protected val anatomyMeasurementColumns = Map[Int,String](8->"body volume",
         9->"body length",
         10->"gonad weight",
@@ -55,6 +57,7 @@ class CiclidXlsImporter {
         22->"cerebellum", //TODO measurement
         23->"dorsal medulla"//TODO measurement
     )
+
 
     protected val anatomyMeasurementUnits = Map[String,String](
         "body length"->"<TODO>",
@@ -75,8 +78,8 @@ class CiclidXlsImporter {
         "dorsal medulla"->"<TODO>"
     )
 
+    protected val log = Ovation.getLogger
 
-    val NUM_HEADER_ROWS = 1
 
     def importXLS(ctx: DataContext, exp: Experiment, xlsPath: String) {
 
@@ -85,51 +88,31 @@ class CiclidXlsImporter {
 
         val sheet = workbook.getSheet("combined")
 
-        log.info("Updating anatomy Sources")
-        sheet.drop(NUM_HEADER_ROWS).foreach(row => {
-
-            //updateAnatomySource(ctx, row) //TODO re-enable
-
-        })
+        log.info("Importing Ciclid anatomy data from " + xlsPath)
 
         log.info("Importing anatomy Epochs")
         sheet.drop(NUM_HEADER_ROWS).foreach(row => {
             importEpoch(ctx, exp, row)
         })
 
+        log.info("Import complete")
+
     }
-
-
-    protected def anatomyRowGenusAndSpecies(row: Row) = {
-        val genus = row.getCell(GENUS_COLUMN).getStringCellValue.replace("'", "").trim
-        val species = row.getCell(SPECIES_COLUMN).getStringCellValue.replace("'", "").trim
-        (genus, species)
-    }
-
-    protected def rowSource(ctx: DataContext, genus:String, species: String) = {
-        ctx.sourceForInsertion(Seq("genus", "species").toArray,
-        Seq(GENUS_NAME_KEY, SPECIES_NAME_KEY).toArray,
-        Seq(genus, species).toArray)
-    }
-
-    protected val log = Ovation.getLogger
-
 
     protected def importEpoch(ctx: DataContext, exp: Experiment, row: Row)
     {
         val (genus, species) = anatomyRowGenusAndSpecies(row)
 
+        log.info("    Importing '" + genus + " " + species + "' (row " + row.getRowNum + ")")
 
         val rowSpecies: Source = rowSource(ctx, genus, species).getSource
 
-        val speciesFish = rowSpecies.getChildren
         val src = rowSpecies.insertSource(FISH_LABEL)
         src.addProperty(XLS_ROW_KEY, row.getRowNum)
 
         addSourceProperties(src, row)
 
 
-        log.info("    importing " + src.getParent.getParent.getLabel + " " + src.getParent.getLabel + "'"))
         val group = exp.insertEpochGroup(src, ANATOMY_GROUP_LABEL, new DateTime(), new DateTime()) //TODO experiment dates?
 
         val parameters = Map[String, Object]()
@@ -164,19 +147,17 @@ class CiclidXlsImporter {
 
     }
 
-    protected def updateAnatomySource(ctx: DataContext, row: Row)
-    {
-        val (genus, species) = anatomyRowGenusAndSpecies(row)
 
-        val srcInsertion = rowSource(ctx, genus, species)
+    protected def anatomyRowGenusAndSpecies(row: Row) = {
+        val genus = row.getCell(GENUS_COLUMN).getStringCellValue.replace("'", "").trim
+        val species = row.getCell(SPECIES_COLUMN).getStringCellValue.replace("'", "").trim
+        (genus, species)
+    }
 
-        if (srcInsertion.isNew) {
-            val source = srcInsertion.getSource
-            source.addProperty(XLS_ROW_KEY, row.getRowNum)
-
-            log.info(
-                "    Inserted source " + source.getParent.getLabel + "(" + genus + ")" + " => " + source.getLabel + "(" + species + ")")
-        }
+    protected def rowSource(ctx: DataContext, genus:String, species: String) = {
+        ctx.sourceForInsertion(Seq("genus", "species").toArray,
+                               Seq(GENUS_NAME_KEY, SPECIES_NAME_KEY).toArray,
+                               Seq(genus, species).toArray)
     }
 
     protected def numericCellValue(row: Row, cellNum: Int): Option[Double] = {
@@ -187,7 +168,7 @@ class CiclidXlsImporter {
             case _ => cell.getCellType match {
                 case Cell.CELL_TYPE_NUMERIC => Some(cell.getNumericCellValue)
                 case _ => {
-                    log.warn("Non-numeric cell value " + cellValue(row, cellNum).getOrElse("<unknown>"))
+                    log.warn("      Non-numeric cell value " + cellValue(row, cellNum).getOrElse("<unknown>"))
                     None
                 }
             }
@@ -205,7 +186,8 @@ class CiclidXlsImporter {
                     case Cell.CELL_TYPE_STRING => cell.getStringCellValue.trim
                     case Cell.CELL_TYPE_BOOLEAN => cell.getBooleanCellValue
                     case Cell.CELL_TYPE_NUMERIC => cell.getNumericCellValue
-                    case _ => throw new OvationXLSImportException("Cannot save cell property for cell of type " + cell.getCellType)
+                    case Cell.CELL_TYPE_ERROR => "Error " + cell.getErrorCellValue
+                    case _ => throw new OvationXLSImportException("      Cannot get cell value for cell of type " + cell.getCellType)
                 }
             )
         }
@@ -223,7 +205,7 @@ class CiclidXlsImporter {
             val value = cellValue(row, cellNum)
             value match {
                 case Some(value) => src.addProperty(label, value)
-                case None => log.warn("Source is missing " + label)
+                case None => log.warn("      Source is missing " + label)
             }
         } }
     }

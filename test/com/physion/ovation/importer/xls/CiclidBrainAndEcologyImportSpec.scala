@@ -14,32 +14,25 @@ import specification.Step
 import java.net.URI
 import scala.Predef._
 
-class CiclidBrainAndEcologyImportSpec extends SpecificationWithJUnit with testconfig { def is =
 
+object CiclidBrainAndEcologyFixture {
+    val ANATOMY_XLSX_FIXTURE_PATH = "fixtures/Ciclid Brain and Social Data with Legend.xlsx"
+}
 
-    "The Ciclid Brain and Ecology importer should" ^ Step(setupDB) ^ Step(importData)
-        "import genus=>species Source hierarchy" ! xls().speciesSourceHierarchy ^
-        "import site Source hierarchy" ! failure ^
-        "import a fish Source" ^
-            "with Source parent hierarchy specifying genus and species" ! xls().fishSourceParent ^
-            "with lake, run#, sex, source and museum owner properties" ! xls().fishOwnerProperties ^
-        "import one EpochGroup('anatomy') per fish Source" ! failure ^
-            "with one trial" ! xls().countEpochs ^
-                "with one floating point Response('measurement name') with floatingPointData[0] the measurement value" ! xls().epochAnatomyResponses ^
-    Step(cleanupDB) ^
-    end
+class CiclidBrainAndEcologyFixture extends SpecificationWithJUnit with testconfig { def is =
 
-    //TODO strip string values in genus/species/etc.
+    "Setting up the test fixture" ^ Step(setupDB) ^ Step(importData) ^
+        new CiclidBrainAndEcologyImportSpec() ^
+        Step(cleanupDB) ^
+        end
 
-    var expUri: URI = null
-    var workbook: XSSFWorkbook = null
-    var projectUUID: String = null
     var dsc: DataStoreCoordinator = null
 
-    val ANATOMY_XLSX_FIXTURE_PATH = "fixtures/Ciclid Brain and Social Data with Legend.xlsx"
+    var projectUri: URI = null
 
     def setupDB {
         Ovation.enableLogging(LogLevel.DEBUG)
+
         Ovation.getLogger.debug("Setting up test database...")
 
         TestDBSetup.setupTestDB(connectionFile, institution_name, lab_name, licenseCode, username, password)
@@ -50,22 +43,10 @@ class CiclidBrainAndEcologyImportSpec extends SpecificationWithJUnit with testco
 
 
         val project = ctx.getProjects("test-project")
-            .headOption
-            .getOrElse(ctx.insertProject("test-project", "test-project", new DateTime()))
+          .headOption
+          .getOrElse(ctx.insertProject("test-project", "test-project", new DateTime()))
 
-        projectUUID = project.getUuid
-    }
-
-    def importXLS(ctx: DataContext) =
-    {
-        val project = ctx.objectWithUUID(projectUUID).asInstanceOf[Project]
-        val exp = project.insertExperiment("xls-import-test", new DateTime())
-
-        // Import the XLS
-        val xlsPath = ANATOMY_XLSX_FIXTURE_PATH
-        new CiclidXlsImporter().importXLS(ctx, exp, xlsPath)
-
-        (exp.getURI, new XSSFWorkbook(new FileInputStream(xlsPath)))
+        projectUri = project.getURI
     }
 
     def importData {
@@ -75,9 +56,7 @@ class CiclidBrainAndEcologyImportSpec extends SpecificationWithJUnit with testco
 
         ctx.authenticateUser(username,password)
 
-        val (uri, wb) = importXLS(ctx)
-        expUri = uri
-        workbook = wb
+        importXLS(ctx)
 
         Ovation.getLogger.debug("Finished test data import")
     }
@@ -91,8 +70,43 @@ class CiclidBrainAndEcologyImportSpec extends SpecificationWithJUnit with testco
         TestDBSetup.cleanupDB(ctx)
     }
 
+    def importXLS(ctx: DataContext)
+    {
+        val project = ctx.objectWithURI(projectUri).asInstanceOf[Project]
+        val exp = project.insertExperiment("xls-import-test", new DateTime())
+
+        // Import the XLS
+        val xlsPath = CiclidBrainAndEcologyFixture.ANATOMY_XLSX_FIXTURE_PATH
+        new CiclidXlsImporter().importXLS(ctx, exp, xlsPath)
+
+    }
+}
+
+class CiclidBrainAndEcologyImportSpec extends SpecificationWithJUnit with testconfig { def is =
+
+    "The Ciclid Brain and Ecology importer should" ^ Step(enableLogging) ^
+        "import genus=>species Source hierarchy" ! xls().speciesSourceHierarchy ^
+        "import site Source hierarchy" ! failure ^
+        "import a fish Source" ^
+            "with Source parent hierarchy specifying genus and species" ! xls().fishSourceParent ^
+            "with lake, run#, sex, source and museum owner properties" ! xls().fishOwnerProperties ^
+        "import one EpochGroup('anatomy') per fish Source" ! failure ^
+            "with one trial" ! xls().countEpochs ^
+                "with one floating point Response('measurement name') with floatingPointData[0] the measurement value" ! xls().epochAnatomyResponses
+
+    var workbook: XSSFWorkbook = null
+    var dsc = DataStoreCoordinator.coordinatorWithConnectionFile(connectionFile)
+
+
+    def enableLogging() {
+        Ovation.enableLogging(LogLevel.DEBUG)
+    }
 
     case class xls() extends testcontext {
+
+
+        val expUri = getContext.query(classOf[Experiment], "").asInstanceOf[java.util.Iterator[Experiment]].next.getURI
+        val workbook = new XSSFWorkbook(new FileInputStream(CiclidBrainAndEcologyFixture.ANATOMY_XLSX_FIXTURE_PATH))
 
 
         def epochAnatomyResponses = {
