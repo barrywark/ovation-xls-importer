@@ -3,16 +3,12 @@ package com.physion.ovation.importer.xls
 import java.io.FileInputStream
 import org.apache.poi.xssf.usermodel.XSSFWorkbook
 import scala.collection.JavaConversions._
-import org.apache.poi.ss.usermodel.{Cell, Row}
 import org.joda.time.DateTime
 import ovation._
 import scala.collection.{Seq, Map}
 import scala.Predef._
+import org.apache.poi.ss.usermodel.{Workbook, Cell, Row}
 
-class OvationXLSImportException(msg: String, cause: Throwable) extends OvationException(msg, cause) {
-
-    def this(msg: String) = this(msg, null)
-}
 
 class CiclidXlsImporter {
 
@@ -81,19 +77,20 @@ class CiclidXlsImporter {
     protected val log = Ovation.getLogger
 
 
-    def importXLS(ctx: DataContext, exp: Experiment, xlsPath: String) {
+    def importXLS(ctx: DataContext, exp: Experiment, xlsWorkbook: Workbook) {
 
-        val input = new FileInputStream(xlsPath);
-        val workbook = new XSSFWorkbook(input)
+        val sheet = xlsWorkbook.getSheet("Combined")
 
-        val sheet = workbook.getSheet("combined")
-
-        log.info("Importing Ciclid anatomy data from " + xlsPath)
+        log.info("Importing Ciclid anatomy data from " + xlsWorkbook)
 
         log.info("Importing anatomy Epochs")
         sheet.drop(NUM_HEADER_ROWS).foreach(row => {
             importEpoch(ctx, exp, row)
         })
+
+        log.info("Importing field ecology data")
+
+
 
         log.info("Import complete")
 
