@@ -98,6 +98,7 @@ class CiclidBrainAndEcologyImportSpec extends SpecificationWithJUnit with testco
 
     var workbook: XSSFWorkbook = null
     var dsc = DataStoreCoordinator.coordinatorWithConnectionFile(connectionFile)
+    val anatomyFixtureSheet = "TestData"
 
 
     def enableLogging() {
@@ -141,7 +142,7 @@ class CiclidBrainAndEcologyImportSpec extends SpecificationWithJUnit with testco
             println("epochAnatomyResponses")
             val exp = getContext.objectWithURI(expUri).asInstanceOf[Experiment]
 
-            val combinedSheet = anatomyWorkbook.getSheet("Combined")
+            val combinedSheet = anatomyWorkbook.getSheet(anatomyFixtureSheet)
 
             val epochs = exp.getEpochsIterable
 
@@ -237,7 +238,7 @@ class CiclidBrainAndEcologyImportSpec extends SpecificationWithJUnit with testco
 
         def fishSourceParent = {
             println("fishSourceParent")
-            val combinedSheet = anatomyWorkbook.getSheet("Combined")
+            val combinedSheet = anatomyWorkbook.getSheet(anatomyFixtureSheet)
 
             val fish = getContext.getSourcesWithLabel("fish")
 
@@ -257,7 +258,7 @@ class CiclidBrainAndEcologyImportSpec extends SpecificationWithJUnit with testco
 
         def fishOwnerProperties = {
             println("fishOwnerProperties")
-            val combinedSheet = anatomyWorkbook.getSheet("Combined")
+            val combinedSheet = anatomyWorkbook.getSheet(anatomyFixtureSheet)
 
             val fish = getContext.getSourcesWithLabel("fish")
 
@@ -291,7 +292,7 @@ class CiclidBrainAndEcologyImportSpec extends SpecificationWithJUnit with testco
         def speciesSourceHierarchy = {
             val ctx = getContext
 
-            val combinedSheet = anatomyWorkbook.getSheet("Combined")
+            val combinedSheet = anatomyWorkbook.getSheet(anatomyFixtureSheet)
 
 
             //Collect (genus,species) tuples
