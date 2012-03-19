@@ -18,10 +18,10 @@ import com.google.common.collect.Iterables
 
 object CiclidBrainAndEcologyFixture {
     val ANATOMY_XLSX_FIXTURE_PATH = "fixtures/Ciclid Brain and Social Data with Legend.xlsx"
-    val ECOLOGY_XLSX_FIXTURE_PATH = "fixtures/Data Consilidation.xlsx"
+    val ECOLOGY_XLSX_FIXTURE_PATH = "fixtures/Ecology 2004 Normalized.xlsx"
 }
 
-class CiclidBrainAndEcologyFixture extends SpecificationWithJUnit with testconfig { def is =
+class CiclidBrainAndEcologySpec extends SpecificationWithJUnit with testconfig { def is =
 
     "Setting up the test fixture" ^ Step(setupDB) ^ Step(importData) ^
         new CiclidBrainAndEcologyImportSpec() ^
@@ -64,11 +64,12 @@ class CiclidBrainAndEcologyFixture extends SpecificationWithJUnit with testconfi
     }
 
     def cleanupDB {
+        Ovation.enableLogging(LogLevel.DEBUG)
+
         Ovation.getLogger.debug("Cleaning up test database")
 
         val ctx = dsc.getContext
-        ctx.authenticateUser(username,password)
-
+        ctx.authenticateUser(username, password)
         TestDBSetup.cleanupDB(ctx)
     }
 
@@ -83,20 +84,24 @@ class CiclidBrainAndEcologyFixture extends SpecificationWithJUnit with testconfi
         val ecologyXLSPath = CiclidBrainAndEcologyFixture.ECOLOGY_XLSX_FIXTURE_PATH
         new CiclidXlsImporter().importXLS(ctx,
                                           exp,
-                                          new XSSFWorkbook(new FileInputStream(xlsPath)),
-                                          DateTimeZone.forID("UTC+3"),
+                                          new XSSFWorkbook(new FileInputStream(xlsPath)).getSheet(anatomyFixtureSheet),
+                                          DateTimeZone.forOffsetHours(2),
                                           ecologyExp,
                                           new XSSFWorkbook(new FileInputStream(ecologyXLSPath)),
-                                          DateTimeZone.forID("UTC+3"))
+                                          DateTimeZone.forOffsetHours(2))
 
     }
 }
 
-class CiclidBrainAndEcologyImportSpec extends SpecificationWithJUnit with testconfig { def is =
+
+
+class CiclidBrainAndEcologyImportSpec extends Specification with testconfig { def is =
 
     "The Ciclid Brain and Ecology importer should" ^ Step(enableLogging) ^
-        //"import genus=>species Source hierarchy" ! xls().speciesSourceHierarchy ^ //TODO re-enable
+        "import genus=>species Source hierarchy" ! xls().speciesSourceHierarchy ^
         "import site Source hierarchy" ! xls().siteSourceHierarchy ^
+            "with one ecology EpochGroup with one Epoch" ! xls().siteEcologyEpoch ^
+                "with one Response for each column observation" ! xls().ecologyObservations ^
         "import a fish anatomy Source for each speices" ^
             "with Source parent hierarchy specifying genus and species" ! xls().fishSourceParent ^
             "with lake, run#, sex, source and museum owner properties" ! xls().fishOwnerProperties ^
@@ -106,7 +111,6 @@ class CiclidBrainAndEcologyImportSpec extends SpecificationWithJUnit with testco
 
     var workbook: XSSFWorkbook = null
     var dsc = DataStoreCoordinator.coordinatorWithConnectionFile(connectionFile)
-    val anatomyFixtureSheet = "TestData"
 
 
     def enableLogging() {
@@ -116,7 +120,7 @@ class CiclidBrainAndEcologyImportSpec extends SpecificationWithJUnit with testco
     case class xls() extends testcontext {
 
 
-        val expUri = getContext.query(classOf[Experiment], "").asInstanceOf[java.util.Iterator[Experiment]].next.getURI
+        val anatomyExpUri = getContext.query(classOf[Experiment], "purpose='xls-import-anatomy-test'").asInstanceOf[java.util.Iterator[Experiment]].next.getURI
         val anatomyWorkbook = new XSSFWorkbook(new FileInputStream(CiclidBrainAndEcologyFixture.ANATOMY_XLSX_FIXTURE_PATH))
 
         def siteSourceHierarchy = {
@@ -124,14 +128,40 @@ class CiclidBrainAndEcologyImportSpec extends SpecificationWithJUnit with testco
             val ecologyWorkbook = new XSSFWorkbook(new FileInputStream(CiclidBrainAndEcologyFixture.ECOLOGY_XLSX_FIXTURE_PATH))
 
             val ctx = getContext
-            val ecologySheet2003 = ecologyWorkbook.getSheet("2003")
+            val ecologySheet = ecologyWorkbook.getSheet("Site")
 
-            val siteRows = ecologySiteRows(ecologySheet2003)
+            val siteRows = ecologySiteRows(ecologySheet)
 
             val sources = ctx.getSourcesWithLabel("ecology-site")
 
             sources.size must beEqualTo (siteRows.size)
 
+        }
+
+        def siteEcologyEpoch() = {
+            println("siteEcologyEpoch")
+            val ctx = getContext
+            val sources = ctx.getSourcesWithLabel("ecology-site")
+
+            sources.map { src =>
+                (src.getEpochGroups("ecology")(0).getEpochCount must beEqualTo(1))
+            }
+            .reduce((r1,r2) => r1 and r2)
+        }
+
+        def ecologyObservations() = {
+            println("ecologyObservations")
+            val ctx = getContext
+
+            val sources = ctx.getSourcesWithLabel("ecology-site")
+
+            sources.map { src =>
+                ((src.getEpochGroups("ecology").length must beEqualTo(1)) and
+                    (src.getEpochGroups("ecology")(0).getEpochsIterable.map { epoch =>
+                        epoch.getResponse("air temperature") must not beNull
+                    }.reduce((r1,r2) => r1 and r2)))
+            }
+                .reduce((r1,r2) => r1 and r2)
         }
 
         def ecologySiteRows(sheet: Sheet) = {
@@ -148,7 +178,7 @@ class CiclidBrainAndEcologyImportSpec extends SpecificationWithJUnit with testco
 
         def epochAnatomyResponses = {
             println("epochAnatomyResponses")
-            val exp = getContext.objectWithURI(expUri).asInstanceOf[Experiment]
+            val exp = getContext.objectWithURI(anatomyExpUri).asInstanceOf[Experiment]
 
             val combinedSheet = anatomyWorkbook.getSheet(anatomyFixtureSheet)
 
@@ -233,7 +263,7 @@ class CiclidBrainAndEcologyImportSpec extends SpecificationWithJUnit with testco
 
         def countEpochs = {
             println("countEpochs")
-            val exp = getContext.objectWithURI(expUri).asInstanceOf[Experiment]
+            val exp = getContext.objectWithURI(anatomyExpUri).asInstanceOf[Experiment]
             val epochGroups: Iterable[EpochGroup] = exp.getEpochGroupsWithLabel("anatomy")
 
             def checkSize(itr: Iterable[Epoch]): Result = {

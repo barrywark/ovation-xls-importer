@@ -1,17 +1,23 @@
 package com.physion.ovation.importer.xls
 
-import java.io.FileInputStream
-import org.apache.poi.xssf.usermodel.XSSFWorkbook
 import scala.collection.JavaConversions._
 import ovation._
-import scala.collection.{Seq, Map}
 import scala.Predef._
-import org.joda.time.format.DateTimeFormatterBuilder
-import org.apache.poi.ss.usermodel.{DateUtil, Workbook, Cell, Row}
 import org.joda.time.{LocalDate, DateTimeZone, DateTime}
+import org.apache.poi.ss.usermodel._
+import collection.{Seq, Map}
+import collection.immutable.HashMap
+import com.google.common.annotations.VisibleForTesting
 
 
 class CiclidXlsImporter {
+
+    implicit def cellToOption(cell: Cell): Option[Cell] = {
+        cell match {
+            case null => None
+            case _ => Some(cell)
+        }
+    }
 
     val GENUS_COLUMN = 1 //"B"
     val SPECIES_COLUMN = 2 //"C"
@@ -75,12 +81,14 @@ class CiclidXlsImporter {
         "dorsal medulla"->"<TODO>"
     )
 
-    protected val log = Ovation.getLogger
+    val XLS_SITE_ID = "_xls_site_id"
 
+
+    protected val log = Ovation.getLogger
 
     def importXLS(ctx: DataContext,
                   anatomyExperiment: Experiment,
-                  anatomyWorkbook: Workbook,
+                  anatomySheet: Sheet,
                   anatomyTimeZone: DateTimeZone,
                   ecologyExperiment: Experiment,
                   ecologyWorkbook: Workbook,
@@ -88,72 +96,199 @@ class CiclidXlsImporter {
 
         log.info("Importing Ciclid anatomy data")
 
-        log.info("Importing anatomy Epochs")
+        log.info("Importing anatomy Epochs…")
 
-        val anatomySheet = anatomyWorkbook.getSheet("Combined")
         anatomySheet.drop(NUM_HEADER_ROWS).foreach(row => {
-            //importEpoch(ctx, anatomyExperiment, row)
+            importEpoch(ctx, anatomyExperiment, row)
         })
 
         log.info("Importing field ecology data")
-        val ecologySheetNames = Seq("1998", "2003", "2004")
-        ecologySheetNames foreach {
-            sheetName => {
-                val ecologySheet = ecologyWorkbook.getSheet(sheetName)
 
-                println(sheetName)
-                val startRows = ecologySheet.drop(NUM_HEADER_ROWS).filter { row => row.getCell(0, Row.RETURN_BLANK_AS_NULL) != null }
+        log.info("  Importing Site Sources…")
+        val sitesSheet = ecologyWorkbook.getSheet("Site")
+        val sites = sitesSheet.drop(NUM_HEADER_ROWS)
+            .filter { row => row.getCell(0, Row.RETURN_BLANK_AS_NULL) != null }
+            .map { row => importEcologySite(ctx, ecologyExperiment, row, ecologyTimeZone) }
+            .toMap
 
-                log.info("  " + sheetName + "...")
 
-                log.info ("    " + startRows.size + " sites...")
-                startRows.sliding (2) foreach { case (row,next) => importEcologySite(ctx, ecologyExperiment, row, next, ecologyTimeZone) }
-            }
+        log.info("  Importing site ecology measurements…")
+        Seq("Environment", "Rugosity", "Rock").map { sheetName =>
+            val ecologyMeasurementsSheet = ecologyWorkbook.getSheet(sheetName)
+            importEcologyMeasurements(ctx, sites, ecologyMeasurementsSheet)
         }
 
+        log.info("  Importing site survey…")
+        val speciesSurveySheet = ecologyWorkbook.getSheet("Survey")
+        importSpeciesSurvey(sites, speciesSurveySheet)
+
+        //TODO nest size/diameter
 
         log.info("Import complete")
 
     }
 
-    //TODO: pass a sliding window of two rows so that we can find where to stop observations
+    val surveyProtocol = "edu.texas.hofmann.site-survey"
+    def importSpeciesSurvey(sites: Map[Long, EpochGroup], sheet: Sheet) {
+        log.info("    Importing site survey…")
+        val siteMeasurements = sheet.drop(NUM_HEADER_ROWS)
+            .filter { row => row.getCell(0, Row.RETURN_BLANK_AS_NULL) != null }
+            .groupBy( row => row.getCell(0).getNumericCellValue.asInstanceOf[Long])
+
+        siteMeasurements.foreach { case (siteID, rows) =>
+            val siteGroup = sites(siteID)
+            val surveyGroup: EpochGroup = siteGroup.getChildren("survey").length match {
+                case 0 => siteGroup.insertEpochGroup("survey", siteGroup.getStartTime, siteGroup.getEndTime)
+                case 1 => siteGroup.getChildren("survey")(0)
+                case _ => {log.warn("Site EpochGroup group has more than \"survey\" child"); siteGroup.getChildren("ecology")(0)}
+            }
+
+
+            val surveyEpoch = surveyGroup.getEpochsIterable.headOption.getOrElse { surveyGroup.insertEpoch(surveyGroup.getStartTime,
+                surveyGroup.getEndTime,
+                surveyProtocol,
+                new HashMap[String,Object]()) //TODO protocolParameters?
+            }
+
+            // insert a response for each survey
+            rows.foreach { row => {
+                val species = row.getCell(1).getStringCellValue
+                val response = surveyEpoch.insertResponse(surveyGroup.getExperiment.externalDevice(species, "field survey"),
+                    new HashMap[String,Object](), //TODO deviceParameters?
+                    new NumericData(Seq(row.getCell(2).getNumericCellValue.asInstanceOf[Int]).toArray),
+                    "count",
+                    species + " count",
+                    1,
+                    "not applicable",
+                    IResponseData.NUMERIC_DATA_UTI)
+
+                row.getCell(3, Row.RETURN_BLANK_AS_NULL).foreach { cell => response.addNote(cell.getStringCellValue, "survey-notes")}
+
+                surveyEpoch.addTag(species)
+                surveyGroup.addTag(species)
+                surveyGroup.getParent.addTag(species)
+            }}
+        }
+    }
+
+    /**
+     * Imports Ecology site Source and EpochGroup
+     *
+     * @param ctx DataContext
+     * @param exp Experiment to contain the inserted EpochGroup
+     * @param row XLS Row with Site data
+     * @param timeZone EpochGroup timezone
+     * @return tuple (siteID, EpochGroup(site))
+     */
     protected def importEcologySite(ctx: DataContext,
                                     exp: Experiment,
                                     row: Row,
-                                    nextSiteRow: Row,
-                                    timeZone: DateTimeZone)
-    {
+    timeZone: DateTimeZone) = {
         val date = new LocalDate(DateUtil.getJavaDate(row.getCell(0).getNumericCellValue), timeZone)
-        val site = row.getCell(1).getStringCellValue
-        val location = row.getCell(2).getStringCellValue
+        val siteName = row.getCell(2).getStringCellValue
 
+        val location = row.getCell(3).getStringCellValue
         val startTime = date.toDateTimeAtStartOfDay(timeZone)
         val endTime = date.plusDays(1).toDateTimeAtStartOfDay(timeZone)
-        val siteGroup = exp.insertEpochGroup("ecology-site",
-                                        startTime,
-                                        endTime)
 
-        siteGroup.addProperty("site", site)
-        siteGroup.addProperty("location", location)
+        val site = ctx.insertSource("ecology-site")
 
-        val gpsLattitude = row.getCell(3, Row.RETURN_BLANK_AS_NULL)
-        if(gpsLattitude != null) {
-            siteGroup.addProperty("gps-lattitude", gpsLattitude)
+        site.addProperty("site-name", siteName)
+        site.addProperty("location", location)
+        val siteID = row.getCell(1).getNumericCellValue.asInstanceOf[Long]
+        site.addProperty(XLS_SITE_ID, siteID)
+
+        row.getCell(4, Row.RETURN_BLANK_AS_NULL).foreach { cell: Cell => site.addProperty("gps-lattitue", cell.getStringCellValue)}
+        row.getCell(5, Row.RETURN_BLANK_AS_NULL).foreach { cell: Cell => site.addProperty("gps-longitude", cell.getStringCellValue)}
+
+        siteID->exp.insertEpochGroup(site,
+            "ecology-site",
+            startTime,
+            endTime)
+    }
+
+    val ecologyProtocol = "edu.texas.hofmann.site-ecology"
+
+    protected def importEcologyMeasurements(ctx: DataContext, sites: Map[Long, EpochGroup], sheet: Sheet) {
+
+        log.info("    Importing ecology measurements " + sheet.getSheetName + "…")
+        val siteMeasurements = sheet.drop(NUM_HEADER_ROWS)
+            .filter { row => row.getCell(0, Row.RETURN_BLANK_AS_NULL) != null }
+            .groupBy( row => row.getCell(0).getNumericCellValue.asInstanceOf[Long])
+
+        siteMeasurements.foreach { case (siteID, rows) =>
+            val siteGroup = sites(siteID)
+            val ecoGroup: EpochGroup = siteGroup.getChildren("ecology").length match {
+                case 0 => siteGroup.insertEpochGroup("ecology", siteGroup.getStartTime, siteGroup.getEndTime)
+                case 1 => siteGroup.getChildren("ecology")(0)
+                case _ => {log.warn("Site EpochGroup group has more than \"ecology\" child"); siteGroup.getChildren("ecology")(0)}
+            }
+
+
+            val ecoEpoch = ecoGroup.getEpochsIterable.headOption.getOrElse { ecoGroup.insertEpoch(ecoGroup.getStartTime,
+                ecoGroup.getEndTime,
+                ecologyProtocol,
+                new HashMap[String,Object]())
+            }
+
+            //add responeses per-column
+            val header = sheet.getRow(0)
+            header.drop(1).foreach { cell => {
+                val units = columnUnits(header, cell.getColumnIndex)
+                val label = columnLabel(header, cell.getColumnIndex)
+
+                val measurements = columnMeasurements(sheet.drop(1), cell.getColumnIndex)
+
+                log.info("      Inserting Response for " + label)
+                ecoEpoch.insertResponse(ecoGroup.getExperiment.externalDevice(label, "field observation"),
+                    new HashMap[String,Object](),
+                    new NumericData(measurements.toArray),
+                    units,
+                    label,
+                    1,
+                    "not applicable",
+                    IResponseData.NUMERIC_DATA_UTI
+                )
+
+            }}
+
         }
+    }
 
-        val gpsLongitude = row.getCell(4, Row.RETURN_BLANK_AS_NULL)
-        if(gpsLongitude != null) {
-            siteGroup.addProperty("gps-longitude", gpsLongitude)
-        }
+    @VisibleForTesting
+    def columnMeasurements( rows: Iterable[Row], colNum: Int) = {
+        rows.map { row => cellToOption(row.getCell(colNum, Row.CREATE_NULL_AS_BLANK)) }
+        .filter  { cell => cell.isDefined }
+        .map { cell => cell.get.getCellType match {
+            case Cell.CELL_TYPE_NUMERIC => cell.get.getNumericCellValue
+            case _ => { println(cell.get.getRow.getSheet.getSheetName); println(cell.get.getRow.getRowNum); println(cell.get.getColumnIndex); throw new OvationXLSImportException("Unusppored measurement cell type " + cell.get.getCellType) }
+        } }
+    }
 
-        val ecologyGroup = siteGroup.insertEpochGroup("ecology", startTime, endTime)
-        val surveyGroup = siteGroup.insertEpochGroup("survey", startTime, endTime)
+    @VisibleForTesting
+    def columnUnits(row: Row, colNum: Int) = {
+        val cell = row.getCell(colNum, Row.RETURN_BLANK_AS_NULL).map { cell => cell.getStringCellValue }
+            .getOrElse({
+            println(row.getSheet.getSheetName)
+            println(row.getRowNum)
+            println(colNum)
+            throw new OvationException("Unable to parse units from column header")
+        })
 
+        cell.slice(cell.indexOf('(')+1, cell.indexOf(')')).trim
 
     }
 
-    protected def importEpoch(ctx: DataContext, exp: Experiment, row: Row)
-    {
+    @VisibleForTesting
+    def columnLabel(row: Row, colNum: Int) = {
+        val cell = row.getCell(colNum, Row.RETURN_BLANK_AS_NULL).map { cell => cell.getStringCellValue }
+            .getOrElse(throw new OvationException("Unable to parse units from column header"))
+
+        cell.slice(0, cell.indexOf('(')).trim
+    }
+
+    protected def importEpoch(ctx: DataContext, exp: Experiment, row: Row) {
+
         val (genus, species) = anatomyRowGenusAndSpecies(row)
 
         log.info("    Importing '" + genus + " " + species + "' (row " + row.getRowNum + ")")
@@ -231,7 +366,7 @@ class CiclidXlsImporter {
 
     protected def cellValue(row: Row, cellNum: Int) =  {
         val cell = row.getCell(cellNum, Row.RETURN_BLANK_AS_NULL)
-        
+
         cell match {
             case null => None
             case _ => Some(
@@ -253,7 +388,7 @@ class CiclidXlsImporter {
                                          5->"sex",
                                          6->"sample-origin",
                                          7->"museum-animal-ID")
-        
+
         properties.map { case (cellNum, label) => {
             val value = cellValue(row, cellNum)
             value match {

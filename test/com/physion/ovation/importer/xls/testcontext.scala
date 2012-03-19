@@ -15,6 +15,8 @@ trait testconfig {
     val username = "user"
     val password = "test"
 
+    val anatomyFixtureSheet = "TestData"
+
     val connectionFile = System.getProperty("OVATION_TEST_FD_PATH")
 }
 
