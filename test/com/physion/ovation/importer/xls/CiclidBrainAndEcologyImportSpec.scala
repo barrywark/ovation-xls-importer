@@ -2,7 +2,7 @@ package com.physion.ovation.importer.xls
 
 import org.specs2._
 import execute.Result
-import org.joda.time.DateTime
+import org.joda.time.{DateTime,DateTimeZone}
 import java.io.FileInputStream
 import scala.collection.JavaConversions._
 import org.apache.log4j.{ConsoleAppender, Logger}
@@ -75,11 +75,19 @@ class CiclidBrainAndEcologyFixture extends SpecificationWithJUnit with testconfi
     def importXLS(ctx: DataContext)
     {
         val project = ctx.objectWithURI(projectUri).asInstanceOf[Project]
-        val exp = project.insertExperiment("xls-import-test", new DateTime())
+        val exp = project.insertExperiment("xls-import-anatomy-test", new DateTime())
+        val ecologyExp = project.insertExperiment("xls-import-ecology-test", new DateTime())
 
         // Import the XLS
         val xlsPath = CiclidBrainAndEcologyFixture.ANATOMY_XLSX_FIXTURE_PATH
-        new CiclidXlsImporter().importXLS(ctx, exp, new XSSFWorkbook(new FileInputStream(xlsPath)))
+        val ecologyXLSPath = CiclidBrainAndEcologyFixture.ECOLOGY_XLSX_FIXTURE_PATH
+        new CiclidXlsImporter().importXLS(ctx,
+                                          exp,
+                                          new XSSFWorkbook(new FileInputStream(xlsPath)),
+                                          DateTimeZone.forID("UTC+3"),
+                                          ecologyExp,
+                                          new XSSFWorkbook(new FileInputStream(ecologyXLSPath)),
+                                          DateTimeZone.forID("UTC+3"))
 
     }
 }
