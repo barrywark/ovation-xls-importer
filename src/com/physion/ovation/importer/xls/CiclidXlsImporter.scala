@@ -3,11 +3,12 @@ package com.physion.ovation.importer.xls
 import java.io.FileInputStream
 import org.apache.poi.xssf.usermodel.XSSFWorkbook
 import scala.collection.JavaConversions._
-import org.joda.time.DateTime
 import ovation._
 import scala.collection.{Seq, Map}
 import scala.Predef._
-import org.apache.poi.ss.usermodel.{Workbook, Cell, Row}
+import org.joda.time.format.DateTimeFormatterBuilder
+import org.apache.poi.ss.usermodel.{DateUtil, Workbook, Cell, Row}
+import org.joda.time.{LocalDate, DateTimeZone, DateTime}
 
 
 class CiclidXlsImporter {
@@ -77,22 +78,77 @@ class CiclidXlsImporter {
     protected val log = Ovation.getLogger
 
 
-    def importXLS(ctx: DataContext, exp: Experiment, xlsWorkbook: Workbook) {
+    def importXLS(ctx: DataContext,
+                  anatomyExperiment: Experiment,
+                  anatomyWorkbook: Workbook,
+                  anatomyTimeZone: DateTimeZone,
+                  ecologyExperiment: Experiment,
+                  ecologyWorkbook: Workbook,
+                  ecologyTimeZone: DateTimeZone) {
 
-        val sheet = xlsWorkbook.getSheet("Combined")
-
-        log.info("Importing Ciclid anatomy data from " + xlsWorkbook)
+        log.info("Importing Ciclid anatomy data")
 
         log.info("Importing anatomy Epochs")
-        sheet.drop(NUM_HEADER_ROWS).foreach(row => {
-            importEpoch(ctx, exp, row)
+
+        val anatomySheet = anatomyWorkbook.getSheet("Combined")
+        anatomySheet.drop(NUM_HEADER_ROWS).foreach(row => {
+            //importEpoch(ctx, anatomyExperiment, row)
         })
 
         log.info("Importing field ecology data")
+        val ecologySheetNames = Seq("1998", "2003", "2004")
+        ecologySheetNames foreach {
+            sheetName => {
+                val ecologySheet = ecologyWorkbook.getSheet(sheetName)
 
+                println(sheetName)
+                val startRows = ecologySheet.drop(NUM_HEADER_ROWS).filter { row => row.getCell(0, Row.RETURN_BLANK_AS_NULL) != null }
+
+                log.info("  " + sheetName + "...")
+
+                log.info ("    " + startRows.size + " sites...")
+                startRows.sliding (2) foreach { case (row,next) => importEcologySite(ctx, ecologyExperiment, row, next, ecologyTimeZone) }
+            }
+        }
 
 
         log.info("Import complete")
+
+    }
+
+    //TODO: pass a sliding window of two rows so that we can find where to stop observations
+    protected def importEcologySite(ctx: DataContext,
+                                    exp: Experiment,
+                                    row: Row,
+                                    nextSiteRow: Row,
+                                    timeZone: DateTimeZone)
+    {
+        val date = new LocalDate(DateUtil.getJavaDate(row.getCell(0).getNumericCellValue), timeZone)
+        val site = row.getCell(1).getStringCellValue
+        val location = row.getCell(2).getStringCellValue
+
+        val startTime = date.toDateTimeAtStartOfDay(timeZone)
+        val endTime = date.plusDays(1).toDateTimeAtStartOfDay(timeZone)
+        val siteGroup = exp.insertEpochGroup("ecology-site",
+                                        startTime,
+                                        endTime)
+
+        siteGroup.addProperty("site", site)
+        siteGroup.addProperty("location", location)
+
+        val gpsLattitude = row.getCell(3, Row.RETURN_BLANK_AS_NULL)
+        if(gpsLattitude != null) {
+            siteGroup.addProperty("gps-lattitude", gpsLattitude)
+        }
+
+        val gpsLongitude = row.getCell(4, Row.RETURN_BLANK_AS_NULL)
+        if(gpsLongitude != null) {
+            siteGroup.addProperty("gps-longitude", gpsLongitude)
+        }
+
+        val ecologyGroup = siteGroup.insertEpochGroup("ecology", startTime, endTime)
+        val surveyGroup = siteGroup.insertEpochGroup("survey", startTime, endTime)
+
 
     }
 
